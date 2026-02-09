@@ -6,10 +6,13 @@ import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { OrdersModule } from './orders/orders.module';
+import { CartModule } from './cart/cart.module';
 import { User } from './users/entities/user.entity';
 import { Product } from './products/entities/product.entity';
 import { Order } from './orders/entities/order.entity';
+import { Cart } from './cart/entities/cart.entity';
 import { FilesModule } from './files/files.module'; 
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -25,9 +28,9 @@ import { FilesModule } from './files/files.module';
       host: 'localhost',
       port: 5432,
       username: 'betulfiliz', 
-      password: 'sifren', // <-- DİKKAT: Buraya kendi gerçek şifreni yazdığına emin ol!
+      password: '1234', // <-- DİKKAT: Buraya kendi gerçek şifreni yazdığına emin ol!
       database: 'eticaret_db',
-      entities: [User, Product, Order],
+      entities: [User, Product, Order, Cart],
       synchronize: true,
     }),
 
@@ -36,7 +39,9 @@ import { FilesModule } from './files/files.module';
     UsersModule,
     AuthModule,
     OrdersModule,
+    CartModule, // <-- Yeni eklenen sepet modülü
     FilesModule, // <-- FilesModule BURADA olmalı (Listenin en sonunda)
+    DatabaseModule,
   ],
 })
 export class AppModule {}

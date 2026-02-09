@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt'; // Şifre karşılaştırmak için
+import { CreateUserDto } from '../users/dto/create-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -9,6 +10,18 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService
   ) {}
+
+  async signUp(createUserDto: CreateUserDto) {
+    // Kaydı yap ve JWT üret
+    const user = await this.usersService.create(createUserDto);
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    const { password, ...safeUser } = user; // Parola hash'ini yanıt dışı bırak
+
+    return {
+      user: safeUser,
+      access_token: await this.jwtService.signAsync(payload),
+    };
+  }
 
   async signIn(email: string, pass: string) {
     // 1. Kullanıcıyı bul

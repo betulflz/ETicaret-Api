@@ -11,6 +11,12 @@ export class User {
   @Column()
   password: string; // Buraya şifrenin kendisi değil, HASH'lenmiş hali gelecek
 
+  @Column({ nullable: true })
+  fullName: string;
+
+  @Column({ nullable: true })
+  phone: string;
+
   @Column({ default: 'customer' }) // Varsayılan rol 'customer' olsun
   role: string;
 }
