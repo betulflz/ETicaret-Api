@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource, In } from 'typeorm';
 import { Cart } from './entities/cart.entity';
 import { AddToCartDto } from './dto/add-to-cart.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 import { Product } from '../products/entities/product.entity';
+import { Order } from '../orders/entities/order.entity';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class CartService {
@@ -13,6 +15,7 @@ export class CartService {
     private readonly cartRepository: Repository<Cart>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    private readonly dataSource: DataSource,
   ) {}
 
   // Sepete ürün ekle
@@ -128,7 +131,7 @@ export class CartService {
       throw new BadRequestException('Sepetiniz boş');
     }
 
-    // Tüm ürünler için stok kontrolü
+    // Tüm ürünler için stok kontrolü (onay aninda tekrar kontrol edilecek)
     for (const item of cartItems) {
       if (item.product.stock < item.quantity) {
         throw new BadRequestException(
@@ -137,24 +140,49 @@ export class CartService {
       }
     }
 
-    // Stoktan düş
-    for (const item of cartItems) {
-      item.product.stock -= item.quantity;
-      await this.productRepository.save(item.product);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const orders: Order[] = [];
+      const orderIds: number[] = [];
+
+      for (const item of cartItems) {
+        const total = Number(item.product.price) * item.quantity;
+        const order = queryRunner.manager.create(Order, {
+          quantity: item.quantity,
+          totalPrice: total,
+          product: item.product,
+          user: { id: userId } as User,
+          status: 'PENDING',
+        });
+
+        const saved = await queryRunner.manager.save(order);
+        orders.push(saved);
+        orderIds.push(saved.id);
+      }
+
+      await queryRunner.manager.remove(cartItems);
+      await queryRunner.commitTransaction();
+
+      const ordersWithRelations = await this.dataSource.manager.find(Order, {
+        where: { id: In(orderIds) },
+        relations: ['product', 'user'],
+      });
+
+      const totalPrice = orders.reduce((sum, order) => sum + Number(order.totalPrice), 0);
+
+      return {
+        message: 'Siparis onayi bekleniyor',
+        orders: ordersWithRelations.length ? ordersWithRelations : orders,
+        total: totalPrice.toFixed(2),
+      };
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
-
-    // Toplam fiyatı hesapla
-    const total = cartItems.reduce((sum, item) => {
-      return sum + (Number(item.product.price) * item.quantity);
-    }, 0);
-
-    // Sepeti temizle
-    await this.cartRepository.remove(cartItems);
-
-    return {
-      message: 'Sipariş başarıyla tamamlandı',
-      items: cartItems,
-      total: total.toFixed(2),
-    };
   }
 }

@@ -46,4 +46,8 @@ export class AuthService {
       access_token: await this.jwtService.signAsync(payload), // İşte o meşhur JWT
     };
   }
+
+  async getProfile(userId: number) {
+    return this.usersService.findMe(userId);
+  }
 }

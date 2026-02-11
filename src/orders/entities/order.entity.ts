@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Product } from '../../products/entities/product.entity';
 
@@ -20,4 +20,13 @@ export class Order {
 
   @Column('decimal')
   totalPrice: number; // Toplam tutar ne kadar?
+
+  @Column({ default: 'PENDING' })
+  status: string; // PENDING | APPROVED | REJECTED
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

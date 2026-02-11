@@ -17,6 +17,9 @@ export class User {
   @Column({ nullable: true })
   phone: string;
 
+  @Column({ nullable: true })
+  gender: string;
+
   @Column({ default: 'customer' }) // Varsayılan rol 'customer' olsun
   role: string;
 }
