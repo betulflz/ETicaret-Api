@@ -11,6 +11,7 @@ import { User } from './users/entities/user.entity';
 import { Product } from './products/entities/product.entity';
 import { Order } from './orders/entities/order.entity';
 import { Cart } from './cart/entities/cart.entity';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { FilesModule } from './files/files.module'; 
 import { DatabaseModule } from './database/database.module';
 
@@ -30,7 +31,7 @@ import { DatabaseModule } from './database/database.module';
       username: 'betulfiliz', 
       password: '1234', // <-- DİKKAT: Buraya kendi gerçek şifreni yazdığına emin ol!
       database: 'eticaret_db',
-      entities: [User, Product, Order, Cart],
+      entities: [User, Product, Order, Cart, RefreshToken],
       synchronize: true,
     }),
 

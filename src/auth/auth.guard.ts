@@ -22,7 +22,7 @@ export class AuthGuard implements CanActivate {
     try {
       // Token'ı çözüyoruz (İçindeki user id'yi okuyoruz)
       const payload = await this.jwtService.verifyAsync(token, {
-        secret: 'cokgizlibiranahtar', // auth.module.ts'deki secret ile aynı olmalı
+        secret: process.env.JWT_SECRET || 'cokgizlibiranahtar',
       });
       
       // Request nesnesinin içine 'user' diye bir alan ekliyoruz.

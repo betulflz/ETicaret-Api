@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
+import { RefreshToken } from '../../auth/entities/refresh-token.entity';
 
 @Entity()
 export class User {
@@ -22,4 +23,7 @@ export class User {
 
   @Column({ default: 'customer' }) // Varsayılan rol 'customer' olsun
   role: string;
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
 }

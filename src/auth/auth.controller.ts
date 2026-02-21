@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post, Get, UseGuards, Request }
 import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 // Giriş için DTO (Basitçe buraya yazıyorum, normalde ayrı dosyada olması daha iyidir)
 class LoginDto {
@@ -22,6 +23,12 @@ export class AuthController {
   @Post('login')
   signIn(@Body() loginDto: LoginDto) {
     return this.authService.signIn(loginDto.email, loginDto.password);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('refresh')
+  refreshAccessToken(@Body() refreshTokenDto: RefreshTokenDto) {
+    return this.authService.refreshAccessToken(refreshTokenDto.refresh_token);
   }
 
   @UseGuards(AuthGuard)
