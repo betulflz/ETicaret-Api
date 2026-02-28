@@ -5,6 +5,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcrypt';
+import { ParsedDataTableQuery, DataTableResponse } from '../common/dto/datatable-query.dto';
 
 @Injectable()
 export class UsersService {
@@ -43,6 +44,74 @@ export class UsersService {
   // 3. Tümünü Listele
   findAll() {
     return this.usersRepository.find();
+  }
+
+  // ========================================
+  // DataTable Server-Side Processing
+  // jQuery DataTables AJAX istekleri için
+  // ========================================
+  async findAllDataTable(dtQuery: ParsedDataTableQuery): Promise<DataTableResponse<any>> {
+    // İzin verilen sıralama kolonları (password hariç!)
+    const allowedColumns = ['id', 'email', 'fullName', 'phone', 'gender', 'role'];
+
+    // --- TOPLAM KAYIT SAYISI ---
+    const recordsTotal = await this.usersRepository.count();
+
+    // --- QueryBuilder ---
+    const query = this.usersRepository.createQueryBuilder('user');
+
+    // --- GLOBAL ARAMA ---
+    if (dtQuery.searchValue && dtQuery.searchValue.trim() !== '') {
+      const searchTerm = `%${dtQuery.searchValue.toLowerCase()}%`;
+      query.andWhere(
+        '(LOWER(user.email) LIKE :search OR LOWER(user.fullName) LIKE :search OR LOWER(user.phone) LIKE :search OR LOWER(user.role) LIKE :search OR CAST(user.id AS TEXT) LIKE :search)',
+        { search: searchTerm },
+      );
+    }
+
+    // --- KOLON BAZLI ARAMA ---
+    dtQuery.columns.forEach((col) => {
+      if (col.searchable && col.searchValue && col.searchValue.trim() !== '' && allowedColumns.includes(col.data)) {
+        query.andWhere(`LOWER(CAST(user.${col.data} AS TEXT)) LIKE :colSearch_${col.data}`, {
+          [`colSearch_${col.data}`]: `%${col.searchValue.toLowerCase()}%`,
+        });
+      }
+    });
+
+    // --- FİLTRELENMİŞ KAYIT SAYISI ---
+    const recordsFiltered = await query.getCount();
+
+    // --- SIRALAMA ---
+    if (dtQuery.orders.length > 0) {
+      dtQuery.orders.forEach((order, index) => {
+        const columnName = order.columnName;
+        if (allowedColumns.includes(columnName)) {
+          if (index === 0) {
+            query.orderBy(`user.${columnName}`, order.dir);
+          } else {
+            query.addOrderBy(`user.${columnName}`, order.dir);
+          }
+        }
+      });
+    } else {
+      query.orderBy('user.id', 'ASC');
+    }
+
+    // --- SAYFALAMA ---
+    if (dtQuery.length > 0) {
+      query.skip(dtQuery.start).take(dtQuery.length);
+    }
+
+    const users = await query.getMany();
+    // Password alanını çıkar
+    const sanitizedUsers = users.map((u) => this.sanitizeUser(u));
+
+    return {
+      draw: dtQuery.draw,
+      recordsTotal,
+      recordsFiltered,
+      data: sanitizedUsers,
+    };
   }
 
   // 4. ID'ye göre tek bir kullanıcı bul (Controller bunu arıyor)

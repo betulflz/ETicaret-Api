@@ -14,6 +14,10 @@ import { Cart } from './cart/entities/cart.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { FilesModule } from './files/files.module'; 
 import { DatabaseModule } from './database/database.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { Favorite } from './favorites/entities/favorite.entity';
+import { ReviewsModule } from './reviews/reviews.module';
+import { Review } from './reviews/entities/review.entity';
 
 @Module({
   imports: [
@@ -31,7 +35,7 @@ import { DatabaseModule } from './database/database.module';
       username: 'betulfiliz', 
       password: '1234', // <-- DİKKAT: Buraya kendi gerçek şifreni yazdığına emin ol!
       database: 'eticaret_db',
-      entities: [User, Product, Order, Cart, RefreshToken],
+      entities: [User, Product, Order, Cart, RefreshToken, Favorite, Review],
       synchronize: true,
     }),
 
@@ -40,8 +44,10 @@ import { DatabaseModule } from './database/database.module';
     UsersModule,
     AuthModule,
     OrdersModule,
-    CartModule, // <-- Yeni eklenen sepet modülü
-    FilesModule, // <-- FilesModule BURADA olmalı (Listenin en sonunda)
+    CartModule,
+    FavoritesModule,
+    ReviewsModule,
+    FilesModule,
     DatabaseModule,
   ],
 })

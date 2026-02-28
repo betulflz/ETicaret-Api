@@ -22,7 +22,7 @@ export class DatabaseSeeder implements OnApplicationBootstrap {
 
   private async seedProductsIfMissing() {
     const seedProducts: Array<
-      Omit<Product, 'id'> & { id?: number }
+      Partial<Product> & { name: string; description: string; price: number; stock: number; imageUrl: string }
     > = [
       {
         name: 'Apple iPhone 15 128GB',

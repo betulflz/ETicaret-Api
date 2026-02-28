@@ -15,8 +15,8 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
   
-  // Validasyon ayarın (Burası zaten vardı)
-  app.useGlobalPipes(new ValidationPipe());
+  // Validasyon ayarın — transform: true query param'ları DTO'daki tiplere çevirir
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
 
   // --- SWAGGER AYARLARI BAŞLANGIÇ ---
   const config = new DocumentBuilder()

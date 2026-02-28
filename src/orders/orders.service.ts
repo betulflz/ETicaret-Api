@@ -6,6 +6,7 @@ import { Product } from '../products/entities/product.entity';
 import { User } from '../users/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ParsedDataTableQuery, DataTableResponse } from '../common/dto/datatable-query.dto';
 
 @Injectable()
 export class OrdersService {
@@ -103,6 +104,159 @@ export class OrdersService {
     });
 
     return orders.map((order) => this.sanitizeUser(order));
+  }
+
+  // ========================================
+  // DataTable Server-Side Processing
+  // jQuery DataTables AJAX istekleri için
+  // ========================================
+  async findAllOrdersDataTable(dtQuery: ParsedDataTableQuery, status?: string): Promise<DataTableResponse<any>> {
+    // İzin verilen sıralama kolonları
+    const allowedColumns = ['id', 'quantity', 'totalPrice', 'status', 'createdAt', 'updatedAt'];
+
+    // --- TOPLAM KAYIT SAYISI (Filtresiz) ---
+    const totalQuery = this.orderRepository.createQueryBuilder('order');
+    if (status) {
+      totalQuery.where('order.status = :status', { status });
+    }
+    const recordsTotal = await totalQuery.getCount();
+
+    // --- QueryBuilder ile dinamik sorgu ---
+    const query = this.orderRepository.createQueryBuilder('order')
+      .leftJoinAndSelect('order.product', 'product')
+      .leftJoinAndSelect('order.user', 'user');
+
+    // --- STATUS FİLTRESİ ---
+    if (status) {
+      query.andWhere('order.status = :status', { status });
+    }
+
+    // --- GLOBAL ARAMA ---
+    if (dtQuery.searchValue && dtQuery.searchValue.trim() !== '') {
+      const searchTerm = `%${dtQuery.searchValue.toLowerCase()}%`;
+      query.andWhere(
+        '(CAST(order.id AS TEXT) LIKE :search OR LOWER(order.status) LIKE :search OR CAST(order.totalPrice AS TEXT) LIKE :search OR LOWER(product.name) LIKE :search OR LOWER(user.email) LIKE :search OR LOWER(user.fullName) LIKE :search)',
+        { search: searchTerm },
+      );
+    }
+
+    // --- KOLON BAZLI ARAMA ---
+    dtQuery.columns.forEach((col) => {
+      if (col.searchable && col.searchValue && col.searchValue.trim() !== '') {
+        if (col.data === 'product.name') {
+          query.andWhere('LOWER(product.name) LIKE :colSearch_productName', {
+            colSearch_productName: `%${col.searchValue.toLowerCase()}%`,
+          });
+        } else if (col.data === 'user.email') {
+          query.andWhere('LOWER(user.email) LIKE :colSearch_userEmail', {
+            colSearch_userEmail: `%${col.searchValue.toLowerCase()}%`,
+          });
+        } else if (allowedColumns.includes(col.data)) {
+          query.andWhere(`LOWER(CAST(order.${col.data} AS TEXT)) LIKE :colSearch_${col.data}`, {
+            [`colSearch_${col.data}`]: `%${col.searchValue.toLowerCase()}%`,
+          });
+        }
+      }
+    });
+
+    // --- FİLTRELENMİŞ KAYIT SAYISI ---
+    const recordsFiltered = await query.getCount();
+
+    // --- SIRALAMA ---
+    if (dtQuery.orders.length > 0) {
+      dtQuery.orders.forEach((order, index) => {
+        const columnName = order.columnName;
+        let orderField = '';
+        if (allowedColumns.includes(columnName)) {
+          orderField = `order.${columnName}`;
+        } else if (columnName === 'product.name') {
+          orderField = 'product.name';
+        } else if (columnName === 'user.email') {
+          orderField = 'user.email';
+        }
+        if (orderField) {
+          if (index === 0) {
+            query.orderBy(orderField, order.dir);
+          } else {
+            query.addOrderBy(orderField, order.dir);
+          }
+        }
+      });
+    } else {
+      query.orderBy('order.createdAt', 'DESC');
+    }
+
+    // --- SAYFALAMA ---
+    if (dtQuery.length > 0) {
+      query.skip(dtQuery.start).take(dtQuery.length);
+    }
+
+    const orders = await query.getMany();
+    const sanitizedOrders = orders.map((o) => this.sanitizeUser(o));
+
+    return {
+      draw: dtQuery.draw,
+      recordsTotal,
+      recordsFiltered,
+      data: sanitizedOrders,
+    };
+  }
+
+  // User Siparişleri DataTable
+  async findUserOrdersDataTable(userId: number, dtQuery: ParsedDataTableQuery): Promise<DataTableResponse<any>> {
+    const allowedColumns = ['id', 'quantity', 'totalPrice', 'status', 'createdAt', 'updatedAt'];
+
+    // --- TOPLAM KAYIT SAYISI ---
+    const recordsTotal = await this.orderRepository.count({
+      where: { user: { id: userId } },
+    });
+
+    // --- QueryBuilder ---
+    const query = this.orderRepository.createQueryBuilder('order')
+      .leftJoinAndSelect('order.product', 'product')
+      .leftJoinAndSelect('order.user', 'user')
+      .where('user.id = :userId', { userId });
+
+    // --- GLOBAL ARAMA ---
+    if (dtQuery.searchValue && dtQuery.searchValue.trim() !== '') {
+      const searchTerm = `%${dtQuery.searchValue.toLowerCase()}%`;
+      query.andWhere(
+        '(CAST(order.id AS TEXT) LIKE :search OR LOWER(order.status) LIKE :search OR CAST(order.totalPrice AS TEXT) LIKE :search OR LOWER(product.name) LIKE :search)',
+        { search: searchTerm },
+      );
+    }
+
+    const recordsFiltered = await query.getCount();
+
+    // --- SIRALAMA ---
+    if (dtQuery.orders.length > 0) {
+      dtQuery.orders.forEach((order, index) => {
+        const columnName = order.columnName;
+        if (allowedColumns.includes(columnName)) {
+          if (index === 0) {
+            query.orderBy(`order.${columnName}`, order.dir);
+          } else {
+            query.addOrderBy(`order.${columnName}`, order.dir);
+          }
+        }
+      });
+    } else {
+      query.orderBy('order.createdAt', 'DESC');
+    }
+
+    if (dtQuery.length > 0) {
+      query.skip(dtQuery.start).take(dtQuery.length);
+    }
+
+    const orders = await query.getMany();
+    const sanitizedOrders = orders.map((o) => this.sanitizeUser(o));
+
+    return {
+      draw: dtQuery.draw,
+      recordsTotal,
+      recordsFiltered,
+      data: sanitizedOrders,
+    };
   }
 
   async approveOrder(orderId: number) {

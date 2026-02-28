@@ -3,10 +3,15 @@ import { AuthService } from './auth.service';
 import { AuthGuard } from './auth.guard';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { IsEmail, IsString, MinLength } from 'class-validator';
 
-// Giriş için DTO (Basitçe buraya yazıyorum, normalde ayrı dosyada olması daha iyidir)
+// Giriş için DTO
 class LoginDto {
+  @IsEmail()
   email: string;
+
+  @IsString()
+  @MinLength(1)
   password: string;
 }
 
@@ -16,6 +21,11 @@ export class AuthController {
 
   @Post('register')
   async signUp(@Body() createUserDto: CreateUserDto) {
+    return this.authService.signUp(createUserDto);
+  }
+
+  @Post('signup')
+  async signUpAlias(@Body() createUserDto: CreateUserDto) {
     return this.authService.signUp(createUserDto);
   }
 

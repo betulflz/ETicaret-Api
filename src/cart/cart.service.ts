@@ -18,6 +18,15 @@ export class CartService {
     private readonly dataSource: DataSource,
   ) {}
 
+  // Yanıttan password alanını temizle
+  private sanitizeCartItem(cartItem: Cart) {
+    if (cartItem.user) {
+      const { password, ...safeUser } = cartItem.user as any;
+      return { ...cartItem, user: safeUser };
+    }
+    return cartItem;
+  }
+
   // Sepete ürün ekle
   async addToCart(userId: number, addToCartDto: AddToCartDto) {
     const { productId, quantity } = addToCartDto;
@@ -36,6 +45,7 @@ export class CartService {
     // Bu kullanıcının sepetinde bu ürün var mı kontrol et
     const existingCartItem = await this.cartRepository.findOne({
       where: { userId, productId },
+      relations: ['product'],
     });
 
     if (existingCartItem) {
@@ -48,7 +58,13 @@ export class CartService {
       }
 
       existingCartItem.quantity = newQuantity;
-      return await this.cartRepository.save(existingCartItem);
+      const saved = await this.cartRepository.save(existingCartItem);
+      // Kaydettikten sonra product ilişkisini yükle
+      const result = await this.cartRepository.findOne({
+        where: { id: saved.id },
+        relations: ['product'],
+      });
+      return result;
     } else {
       // Yoksa yeni sepet öğesi oluştur
       const cartItem = this.cartRepository.create({
@@ -56,7 +72,13 @@ export class CartService {
         productId,
         quantity,
       });
-      return await this.cartRepository.save(cartItem);
+      const saved = await this.cartRepository.save(cartItem);
+      // Kaydettikten sonra product ilişkisini yükle
+      const result = await this.cartRepository.findOne({
+        where: { id: saved.id },
+        relations: ['product'],
+      });
+      return result;
     }
   }
 
@@ -73,7 +95,11 @@ export class CartService {
     }, 0);
 
     return {
-      items: cartItems,
+      items: cartItems.map(item => {
+        // user eager olmadığı için artık password sızmaz, ama güvenlik için kontrol et
+        const { user, ...safeItem } = item as any;
+        return safeItem;
+      }),
       total: total.toFixed(2),
       itemCount: cartItems.length,
     };

@@ -1,13 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Put, Param, Delete, UseGuards, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Put, Param, Delete, Query, UseGuards, UseInterceptors, UploadedFile, BadRequestException, Req } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { FilterProductDto } from './dto/filter-product.dto';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { ApiQuery } from '@nestjs/swagger';
+import { parseDataTableQuery } from '../common/dto/datatable-query.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -56,9 +59,28 @@ export class ProductsController {
     return this.productsService.create(createProductDto);
   }
 
+  // ========================================
+  // DataTable Server-Side Processing Endpoint
+  // jQuery DataTables AJAX istekleri için
+  // GET /products/datatable?draw=1&start=0&length=10&search[value]=laptop&...
+  // ========================================
+  @Get('datatable')
+  findAllDataTable(@Query() query: Record<string, any>) {
+    const dtQuery = parseDataTableQuery(query);
+    return this.productsService.findAllDataTable(dtQuery);
+  }
+
   @Get()
-  findAll() {
-    return this.productsService.findAll();
+  @ApiQuery({ name: 'search', required: false, description: 'Ürün adı veya açıklamasında arama' })
+  @ApiQuery({ name: 'minPrice', required: false, description: 'Minimum fiyat' })
+  @ApiQuery({ name: 'maxPrice', required: false, description: 'Maksimum fiyat' })
+  @ApiQuery({ name: 'inStock', required: false, description: 'Sadece stokta olanlar (true/false)' })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['price', 'name', 'stock', 'id'], description: 'Sıralama kriteri' })
+  @ApiQuery({ name: 'order', required: false, enum: ['ASC', 'DESC'], description: 'Sıralama yönü' })
+  @ApiQuery({ name: 'page', required: false, description: 'Sayfa numarası' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Sayfa başına ürün sayısı' })
+  findAll(@Query() filterDto: FilterProductDto) {
+    return this.productsService.findAll(filterDto);
   }
 
   @Get(':id')

@@ -17,8 +17,15 @@ export class Product {
   @Column('int')
   stock: number;
 
-  // --- YENİ EKLENEN KISIM ---
-  @Column({ nullable: true }) // Resimsiz ürün olabilir diye nullable yaptık
-  imageUrl: string; 
-  // --------------------------
+  // Resim URL'i
+  @Column({ nullable: true })
+  imageUrl: string;
+
+  // Ortalama puan (1-5 arası, review eklenince otomatik güncellenir)
+  @Column('decimal', { default: 0, precision: 2, scale: 1 })
+  averageRating: number;
+
+  // Toplam yorum sayısı
+  @Column('int', { default: 0 })
+  reviewCount: number;
 }

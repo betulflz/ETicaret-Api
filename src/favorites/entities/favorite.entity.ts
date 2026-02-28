@@ -1,26 +1,24 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, ManyToOne, Column, CreateDateColumn, Unique } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Product } from '../../products/entities/product.entity';
 
 @Entity()
-export class Cart {
+@Unique(['userId', 'productId']) // Aynı ürün iki kez favoriye eklenemez
+export class Favorite {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   user: User;
 
   @Column()
   userId: number;
 
-  @ManyToOne(() => Product, { eager: true })
+  @ManyToOne(() => Product, { onDelete: 'CASCADE', eager: true })
   product: Product;
 
   @Column()
   productId: number;
-
-  @Column('int')
-  quantity: number; // Sepete kaç adet eklendiği
 
   @CreateDateColumn()
   createdAt: Date;
